@@ -2,6 +2,7 @@
 
 This guide documents the complete setup process for deploying the OpenClaw agent infrastructure on a Hetzner VPS using Terraform, Docker, and Tailscale. Use this guide if you need to recreate the environment on a new device or server.
 
+<<<<<<< HEAD
 ## 1. Getting Started (For a Brand New Computer)
 
 Imagine your new computer is a blank canvas. To build your AI robot (OpenClaw) and put it on a cloud server (Hetzner), you need a few tools first.
@@ -57,10 +58,45 @@ Now we will use the first folder (`openclaw-terraform-hetzner`) to rent and conf
 4. **Build the Server!**
    Run these commands one by one. Terraform will ask you to type `yes` to confirm.
    ```bash
+=======
+## 1. Preparing a New Device
+If you are setting this up on a brand new device, you need to prepare the following:
+
+### Dependencies to Install
+1. **Terraform**: For provisioning the Hetzner VPS.
+2. **Git & Git Bash**: For version control (use Git Bash on Windows).
+3. **Make**: To run the `Makefile` deployment scripts.
+4. **Tailscale**: For secure, private networking to the Web UI and SSH.
+
+### Keys & Tokens Required
+You will need to gather these tokens before starting:
+- **Hetzner API Token**: For Terraform to provision the server.
+- **Telegram Bot Token**: From `@BotFather` on Telegram.
+- **AI API Keys**: Your Google AI Studio (Gemini) or Anthropic keys.
+- **SSH Key**: Generate a new `id_ed25519` key if you don't have one, and add it to your `ssh-agent`:
+  ```bash
+  eval "$(ssh-agent -s)"
+  ssh-add ~/.ssh/id_ed25519
+  ```
+
+## 2. Infrastructure Setup (Repo 1: openclaw-terraform-hetzner)
+You must set up the infrastructure first before deploying the docker configuration.
+
+1. Create a `config/inputs.sh` file with your API tokens (Hetzner, GitHub).
+2. Start your SSH agent so deployment scripts don't ask for your password repeatedly:
+   ```bash
+   eval "$(ssh-agent -s)"
+   ssh-add ~/.ssh/id_ed25519
+   ```
+3. Provision the server:
+   ```bash
+   source config/inputs.sh
+>>>>>>> 39cffa1 (Update working)
    make init
    make plan
    make apply
    ```
+<<<<<<< HEAD
    *Congratulations! You just created a server in the cloud.*
 
 ---
@@ -103,12 +139,40 @@ Now we tell the server to download the brain and start running!
    Open `secrets/openclaw.env` and paste all your tokens (Telegram, AI keys, etc.).
 3. **Launch the Robot!**:
    This command sends your secrets to the server safely and tells the server to start the AI.
+=======
+4. Verify Tailscale is connected (`make tailscale-status`), then lock down the server firewall by removing public SSH access in `inputs.sh` (`export TF_VAR_ssh_allowed_cidrs='[]'`) and running `make apply` again.
+
+## 3. Configuration Setup (Repo 2: openclaw-docker-config)
+Once the server is running, switch to the `openclaw-docker-config` repository. Your agent's settings (`openclaw.json`), personality (`SOUL.md`), skills (`skills-manifest.txt`), and Docker image definitions live here.
+
+### Fixing Line Endings (Windows Only)
+If cloning on Windows, Git converts shell scripts to `\r\n`. You must convert them back to Linux format before building the Docker image:
+```bash
+dos2unix docker/*.sh scripts/*.sh
+```
+
+### Building and Pushing Custom Images
+1. Ensure your `GHCR_USERNAME` is correctly set in your environment.
+2. Build the image and push it to your GitHub Container Registry:
+   ```bash
+   bash scripts/build-and-push.sh
+   ```
+
+## 4. Final Deployment (Back to Repo 1)
+Once the server is provisioned and the Docker image is ready, go back to the `openclaw-terraform-hetzner` repository to deploy everything.
+
+1. Setup your secrets in `secrets/openclaw.env`.
+2. Push your config and secrets, then deploy:
+>>>>>>> 39cffa1 (Update working)
    ```bash
    make push-env push-config deploy
    ```
 
+<<<<<<< HEAD
 If everything succeeds, OpenClaw is now alive and running on your server!
 
+=======
+>>>>>>> 39cffa1 (Update working)
 ## 5. Exposing the Gateway securely
 We use **Tailscale Serve** to securely host the OpenClaw Web UI on your private Tailnet without exposing it to the public internet.
 ```bash
@@ -144,6 +208,7 @@ To integrate the agent with Telegram and add it to groups, follow these steps:
    }
    ```
 6. **Clearing Memory:** If the bot gets stuck with too much history (triggering API cap errors), type `/new` in the chat to drop the memory and start a fresh session.
+<<<<<<< HEAD
 
 ## 7. Google Workspace Skill (gog) Setup
 
@@ -392,3 +457,5 @@ Paste your token and hit enter. Once it succeeds, type `exit` to leave the conta
 Because the AI's subprocess environment is isolated, you must explicitly tell the AI where to find the auth file. The very first time you ask the agent to do a GitHub task, provide this exact instruction:
 
 *"When running any `gh` commands, you must explicitly prefix it with the config directory because the token is intentionally hidden from your environment. Always run it like this: `GH_CONFIG_DIR=/home/node/.openclaw/gh gh <command>`"*
+=======
+>>>>>>> 39cffa1 (Update working)
