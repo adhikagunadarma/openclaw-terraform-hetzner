@@ -107,3 +107,13 @@ export TF_VAR_tailscale_auth_key=""
 # Note: IPv6-only is not plug-and-play for image pulls because ghcr.io does not
 # provide IPv6 out of the box. Use a NAT64-capable DNS service when disabling IPv4.
 # export TF_VAR_server_enable_ipv4=true
+
+# ============================================
+# OPTIONAL: Google (GOG) Authentication
+# ============================================
+# Used to authenticate Google accounts (e.g. for calendar/gmail access).
+# Set these from your Google Cloud Console OAuth 2.0 Client IDs.
+# Then run: ./scripts/setup-gog-auth.sh
+# export GOG_CLIENT_ID=""
+# export GOG_PROJECT_ID="pepongclaw"
+# export GOG_CLIENT_SECRET=""

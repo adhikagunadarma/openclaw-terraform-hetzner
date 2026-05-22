@@ -2,7 +2,6 @@
 
 This guide documents the complete setup process for deploying the OpenClaw agent infrastructure on a Hetzner VPS using Terraform, Docker, and Tailscale. Use this guide if you need to recreate the environment on a new device or server.
 
-<<<<<<< HEAD
 ## 1. Getting Started (For a Brand New Computer)
 
 Imagine your new computer is a blank canvas. To build your AI robot (OpenClaw) and put it on a cloud server (Hetzner), you need a few tools first.
@@ -96,7 +95,6 @@ You must set up the infrastructure first before deploying the docker configurati
    make plan
    make apply
    ```
-<<<<<<< HEAD
    *Congratulations! You just created a server in the cloud.*
 
 ---
@@ -168,11 +166,8 @@ Once the server is provisioned and the Docker image is ready, go back to the `op
    make push-env push-config deploy
    ```
 
-<<<<<<< HEAD
 If everything succeeds, OpenClaw is now alive and running on your server!
 
-=======
->>>>>>> 39cffa1 (Update working)
 ## 5. Exposing the Gateway securely
 We use **Tailscale Serve** to securely host the OpenClaw Web UI on your private Tailnet without exposing it to the public internet.
 ```bash
@@ -199,6 +194,7 @@ To integrate the agent with Telegram and add it to groups, follow these steps:
 4. **Group Configuration:** If you add a `"groups"` block to `openclaw.json`, it enforces strict allowlisting. You must ensure:
    - Supergroup IDs always have a `-100` prefix (e.g., `-1003788752801`).
    - `"groupPolicy"` should be `"allowlist"`.
+   - **Do not use inline comments** next to variables in `secrets/openclaw.env` (e.g., `TELEGRAM_GROUP=-123 # group name`). Docker parses the comment as part of the value, which breaks the Telegram allowlist.
 5. **Disable Heartbeat Spams:** To prevent the bot from waking up every 30 minutes, failing to compact memory, and spamming your API billing, disable the heartbeat in `openclaw.json`:
    ```json
    "agents": {
@@ -208,7 +204,6 @@ To integrate the agent with Telegram and add it to groups, follow these steps:
    }
    ```
 6. **Clearing Memory:** If the bot gets stuck with too much history (triggering API cap errors), type `/new` in the chat to drop the memory and start a fresh session.
-<<<<<<< HEAD
 
 ## 7. Google Workspace Skill (gog) Setup
 
@@ -304,18 +299,19 @@ If you ever need to rotate the OAuth client in Google Cloud Console:
 OpenClaw supports using your existing ChatGPT Plus subscription (via the Codex integration) to power your agent without needing to pay for separate OpenAI API credits. This uses OAuth instead of API keys.
 
 ### Step 1: Run the Onboarding Flow
-To authenticate your OpenAI account, you need to use the `oc onboard` command inside the container.
+To authenticate your OpenAI account, you need to use the `setup-codex-auth` make target, which simplifies the process and handles Tailscale IPs automatically.
 
 ```bash
-# SSH into the server
-make ssh
+# Set up Codex authentication
+make setup-codex-auth
+```
 
-# Exec into the OpenClaw container
-docker exec -it openclaw-openclaw-gateway-1 bash openclaw models auth login --provider openai-codex
-https://docs.openclaw.ai/providers/openai#codex-subscription
+This command will output an OAuth authorization URL. Open that URL in your local browser, sign in to your ChatGPT account, and grant the necessary permissions. 
 
+> [!NOTE]
+> If the browser redirects to `http://localhost/?state=...` and fails to load, simply copy that URL from your browser and run `curl "http://localhost/..."` from the VPS terminal just like you did for the GOG setup.
 
-This command will output an OAuth authorization URL. Open that URL in your local browser, sign in to your ChatGPT account, and grant the necessary permissions. Once complete, the token will be securely saved, and OpenClaw will route `openai` model requests through your ChatGPT account.
+Once complete, the token will be securely saved, and OpenClaw will route `openai` model requests through your ChatGPT account.
 
 ## 9. Gateway Device Pairing & Approval
 
@@ -413,8 +409,8 @@ To balance cost and performance, we use models that are **one version behind the
 - **Premium Models:** `openai-codex/gpt-5.5` / `openai/gpt-5.5` / `google/gemini-3.1-pro` / `deepseek/deepseek-v4-pro`
 - **Usage:** OpenClaw defaults to 5.4 for standard tasks. When you need deep reasoning or complex coding, manually switch the model for that specific session or prompt (e.g., using `/model openai-codex/gpt-5.5` in Telegram).
 
-### 5. ZAI & Qwen
-- **Usage:** Kept configured for manual selection if a specific need arises, but excluded from general automated fallbacks to preserve funds for the priority providers.
+### 5. ZAI, Qwen & LiteLLM
+- **Usage:** Kept configured for manual selection if a specific need arises, but excluded from general automated fallbacks to preserve funds for the priority providers. LiteLLM proxy (e.g. for Anthropic Claude) is also available for complex tasks.
 
 ### Provider Pricing References
 - **Google Gemini:** [https://ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
@@ -422,6 +418,7 @@ To balance cost and performance, we use models that are **one version behind the
 - **Qwen:** [https://www.qwencloud.com/models](https://www.qwencloud.com/models)
 - **ZAI:** [https://docs.z.ai/guides/overview/pricing](https://docs.z.ai/guides/overview/pricing)
 - **DeepSeek:** [https://api-docs.deepseek.com/quick_start/pricing/](https://api-docs.deepseek.com/quick_start/pricing/)
+- **LiteLLM / Anthropic:** [https://www.anthropic.com/pricing](https://www.anthropic.com/pricing)
 
 ## 10. GitHub CLI (gh) Setup
 
@@ -457,5 +454,3 @@ Paste your token and hit enter. Once it succeeds, type `exit` to leave the conta
 Because the AI's subprocess environment is isolated, you must explicitly tell the AI where to find the auth file. The very first time you ask the agent to do a GitHub task, provide this exact instruction:
 
 *"When running any `gh` commands, you must explicitly prefix it with the config directory because the token is intentionally hidden from your environment. Always run it like this: `GH_CONFIG_DIR=/home/node/.openclaw/gh gh <command>`"*
-=======
->>>>>>> 39cffa1 (Update working)

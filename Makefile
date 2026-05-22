@@ -119,6 +119,14 @@ setup-auth: ## Set up Claude subscription auth on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Claude subscription auth..."
 	@./scripts/setup-auth.sh $(SERVER_IP)
 
+setup-gog-auth: ## Set up Google authentication on the VPS
+	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Google authentication..."
+	@./scripts/setup-gog-auth.sh $(SERVER_IP)
+
+setup-codex-auth: ## Set up OpenAI Codex (ChatGPT) authentication on the VPS
+	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Codex authentication..."
+	@./scripts/setup-codex-auth.sh $(SERVER_IP)
+
 backup-now: ## Run backup now on the VPS
 	@echo -e "$(GREEN)[INFO]$(NC) Running backup on $(SERVER_IP)..."
 	ssh $(SSH_OPTS) openclaw@$(SERVER_IP) \
