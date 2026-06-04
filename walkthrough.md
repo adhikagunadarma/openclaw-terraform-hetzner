@@ -143,6 +143,12 @@ Now we tell the server to download the brain and start running!
 ## 3. Configuration Setup (Repo 2: openclaw-docker-config)
 Once the server is running, switch to the `openclaw-docker-config` repository. Your agent's settings (`openclaw.json`), personality (`SOUL.md`), skills (`skills-manifest.txt`), and Docker image definitions live here.
 
+### Adding New Skills & Updating OpenClaw
+To upgrade OpenClaw or add new skills (like `flyai` or `stock-analysis`):
+1. **Version:** Edit `docker/Dockerfile` and change `OPENCLAW_VERSION`.
+2. **Skills:** Append the ClawHub skill names to `config/skills-manifest.txt`. *(Note: The Dockerfile is configured to automatically fix Windows line endings on this file during build, so you don't have to worry about trailing newlines or CRLF breaking the install loop).*
+3. **Commit:** You **must** commit your changes locally first (e.g., `git commit -am "update"`), because the build script tags the image with your current git SHA. If you don't commit, your new image will be tagged with an old hash!
+
 ### Fixing Line Endings (Windows Only)
 If cloning on Windows, Git converts shell scripts to `\r\n`. You must convert them back to Linux format before building the Docker image:
 ```bash
@@ -204,6 +210,12 @@ To integrate the agent with Telegram and add it to groups, follow these steps:
    }
    ```
 6. **Clearing Memory:** If the bot gets stuck with too much history (triggering API cap errors), type `/new` in the chat to drop the memory and start a fresh session.
+7. **"Permission Denied" / Telegram Not Responding:** If Telegram stops responding and the logs show `Error: EACCES: permission denied, mkdir '/home/openclaw'`, it means the container is incorrectly trying to use the host's directory paths internally instead of `/home/node`. To fix this, ensure your `docker-compose.yml` explicitly overrides the container's environment paths like this:
+   ```yaml
+   environment:
+     OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+     OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+   ```
 
 ## 7. Google Workspace Skill (gog) Setup
 
@@ -238,28 +250,38 @@ scp client_secret.json openclaw@<VPS>:~/.openclaw/client_secret.json
 ssh openclaw@<VPS> "chmod 600 ~/.openclaw/client_secret.json"
 ```
 
-### Step 3: Register Credentials & Authenticate (Headless)
+### Step 3: Register Credentials & Authenticate (The Localhost Ritual)
 
-> [!WARNING]
-> **Tilde (`~`) Expansion Trap:** Always `exec` into the container's `bash` shell **before** running the `gog auth` commands (as shown below). If you try to run it from outside as a one-liner (e.g. `docker exec -it ... gog auth credentials ~/.openclaw/client_secret.json`), your host server's shell will incorrectly expand `~` to `/home/openclaw` instead of `/home/node`, resulting in a "no such file or directory" error!
+Instead of manually registering credentials inside the container, you can use the setup script and a simple `curl` ritual to seamlessly complete the OAuth flow across the network.
 
-SSH into the VPS and exec into the running container to run `gogcli`:
+1. **Trigger the Auth Script**:
+   From your local `openclaw-terraform-hetzner` directory, run:
+   ```bash
+   ./scripts/setup-gog-auth.sh
+   ```
+   This will automatically push your client secret to the VPS and trigger the interactive OAuth flow.
 
-```bash
-# SSH into the server
-make ssh
+2. **Open the Google URL**:
+   The terminal will print a URL starting with `https://accounts.google.com/o/oauth2/auth...`. Open this link in your local web browser, sign in, and authorize the app.
 
-# Exec into the OpenClaw container FIRST
-docker exec -it openclaw-openclaw-gateway-1 bash
+3. **Capture the Callback URL**:
+   After you authorize, Google will redirect your browser to a local URL (e.g., `http://127.0.0.1:34815/oauth2/callback?...`). 
+   Because this web server is actually listening inside the container on your VPS, your local browser will fail to connect. **Copy this entire URL from your browser's address bar**.
 
-# Register the client secret with gogcli (inside the container)
-gog auth credentials ~/.openclaw/client_secret.json
+4. **Complete the Ritual via SSH**:
+   Open a *second* terminal window, SSH into the VPS, and run `curl` on that URL from *inside* the container:
+   ```bash
+   make ssh
+   
+   # Jump into the container
+   docker exec -it openclaw-openclaw-gateway-1 bash
+   
+   # Paste your captured URL inside quotes:
+   curl "http://127.0.0.1:34815/oauth2/callback?state=..."
+   ```
 
-# Authenticate your Google account (headless — no browser on server)
-gog auth add your-email@gmail.com --services gmail,calendar,drive --manual
-```
-
-The `--manual` flag will print a URL. Open that URL in a browser on your local machine, sign in with your Google account, grant permissions, then copy the authorization code back into the terminal.
+5. **Success**:
+   As soon as you run the `curl` command, the script in your first terminal will detect the callback, save the persistent credentials, and output `gog is now authorized to access Google Workspace`. You can then type `exit` to leave the container.
 
 ### Step 4: Verify It Works
 
