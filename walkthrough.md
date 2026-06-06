@@ -219,7 +219,7 @@ To integrate the agent with Telegram and add it to groups, follow these steps:
 
 ## 7. Google Workspace Skill (gog) Setup
 
-The `gog` skill gives your agent access to Gmail, Google Calendar, and Google Drive via the `gogcli` CLI. Unlike other config files, the Google OAuth credentials (`client_secret.json`) are **not** managed by `push-config` — they must be set up manually once.
+The `gog` skill gives your agent access to Gmail, Google Calendar, and Google Drive via the `gogcli` CLI. Unlike other config files, the Google OAuth client secret is **not** managed by `push-config`; `setup-gog-auth.sh` writes it directly to the persistent OpenClaw volume and reuses existing OAuth tokens when they are already present.
 
 ### Step 1: Create a Google Cloud OAuth App
 
@@ -238,19 +238,7 @@ The `gog` skill gives your agent access to Gmail, Google Calendar, and Google Dr
    - Choose **Desktop app** as the application type.
    - Download the JSON file — this is your `client_secret.json`.
 
-### Step 2: Push the Credential File to the VPS
-
-This is a **one-time manual step**. The file lives on the VPS at `~/.openclaw/client_secret.json` and is never touched by `push-config`.
-
-```bash
-# From your local machine (replace <VPS> with your server IP or Tailscale hostname)
-scp client_secret.json openclaw@<VPS>:~/.openclaw/client_secret.json
-
-# Set secure permissions
-ssh openclaw@<VPS> "chmod 600 ~/.openclaw/client_secret.json"
-```
-
-### Step 3: Register Credentials & Authenticate (The Localhost Ritual)
+### Step 2: Register Credentials & Authenticate (The Localhost Ritual)
 
 Instead of manually registering credentials inside the container, you can use the setup script and a simple `curl` ritual to seamlessly complete the OAuth flow across the network.
 
@@ -259,10 +247,10 @@ Instead of manually registering credentials inside the container, you can use th
    ```bash
    ./scripts/setup-gog-auth.sh
    ```
-   This will automatically push your client secret to the VPS and trigger the interactive OAuth flow.
+   This automatically writes `client_secret_desktop.json` to `~/.openclaw/`, registers it inside the container, and checks whether the configured account is already authenticated. If the account token still exists, the script exits without opening the browser OAuth flow.
 
 2. **Open the Google URL**:
-   The terminal will print a URL starting with `https://accounts.google.com/o/oauth2/auth...`. Open this link in your local web browser, sign in, and authorize the app.
+   If no valid token exists, the terminal will print a URL starting with `https://accounts.google.com/o/oauth2/auth...`. Open this link in your local web browser, sign in, and authorize the app.
 
 3. **Capture the Callback URL**:
    After you authorize, Google will redirect your browser to a local URL (e.g., `http://127.0.0.1:34815/oauth2/callback?...`). 
@@ -283,7 +271,7 @@ Instead of manually registering credentials inside the container, you can use th
 5. **Success**:
    As soon as you run the `curl` command, the script in your first terminal will detect the callback, save the persistent credentials, and output `gog is now authorized to access Google Workspace`. You can then type `exit` to leave the container.
 
-### Step 4: Verify It Works
+### Step 3: Verify It Works
 
 ```bash
 # Still inside the container
@@ -294,9 +282,11 @@ If you see your recent emails, the setup is complete. Type `exit` to leave the c
 
 ### How Token Persistence Works
 
-The `docker-compose.yml` sets two environment variables that make `gogcli` store tokens in an encrypted file on the persistent volume instead of the (non-existent) system keyring inside the container:
+The `docker-compose.yml` sets these environment variables so `gogcli` stores both its config and encrypted file-keyring state on the persistent OpenClaw volume instead of ephemeral container paths:
 
 ```yaml
+XDG_CONFIG_HOME: /home/node/.openclaw/.config
+XDG_DATA_HOME: /home/node/.openclaw/.local/share
 GOG_KEYRING_BACKEND: file
 GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD:-openclaw-gog-keyring}
 ```
@@ -313,8 +303,8 @@ If tokens are lost, repeat **Step 3** to re-authenticate.
 
 If you ever need to rotate the OAuth client in Google Cloud Console:
 1. Download the new `client_secret.json`
-2. Push it manually: `scp client_secret.json openclaw@<VPS>:~/.openclaw/client_secret.json`
-3. Re-run Step 3 to re-register and re-authenticate
+2. Export the new `GOG_CLIENT_ID` and `GOG_CLIENT_SECRET`
+3. Re-run `./scripts/setup-gog-auth.sh` to rewrite the persisted desktop client file and re-register it
 
 ## 8. OpenAI/ChatGPT (Codex) OAuth Setup
 

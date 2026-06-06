@@ -8,7 +8,8 @@
 # This script:
 #   1. Reads GOG_CLIENT_ID, GOG_PROJECT_ID, and GOG_CLIENT_SECRET from the env
 #   2. Writes client_secret_desktop.json directly to the VPS host volume
-#   3. Triggers the interactive `gog auth` command for the user to complete
+#   3. Registers the OAuth client in the persistent gog config path
+#   4. Reuses an existing token when present, or triggers interactive auth
 # =============================================================================
 
 set -euo pipefail
@@ -95,7 +96,7 @@ echo "[...] Writing client_secret_desktop.json to VPS..."
 echo "[INFO] Constructing client_secret_desktop.json from environment variables..."
 ssh $SSH_OPTS "$VPS_USER@$VPS_IP" bash -s <<REMOTE_SCRIPT
 set -euo pipefail
-mkdir -p "$AUTH_DIR"
+mkdir -p "$AUTH_DIR/.config/gogcli" "$AUTH_DIR/.local/share"
 cat > "$AUTH_FILE" << 'AUTHEOF'
 {
   "installed": {
@@ -114,28 +115,49 @@ echo "[OK] GOG auth profile written to $AUTH_FILE"
 REMOTE_SCRIPT
 
 # -----------------------------------------------------------------------------
-# Trigger OAuth Flow
+# Register credentials and reuse existing OAuth token when possible
 # -----------------------------------------------------------------------------
 
 echo ""
-echo "[...] Triggering interactive OAuth flow..."
-echo "You will likely be given a URL to open in your browser."
-echo "Please follow the instructions on screen."
+echo "[...] Registering GOG credentials in persistent config..."
 echo ""
 
-# We use -t to force pseudo-terminal allocation for interactive auth
-ssh -t $SSH_OPTS "$VPS_USER@$VPS_IP" \
+GOG_DOCKER_ENV="-e XDG_CONFIG_HOME=/home/node/.openclaw/.config -e XDG_DATA_HOME=/home/node/.openclaw/.local/share -e GOG_KEYRING_BACKEND=file"
+
+ssh $SSH_OPTS "$VPS_USER@$VPS_IP" \
     "cd ~/openclaw && \
-    docker compose exec openclaw-gateway gog auth credentials /home/node/.openclaw/client_secret_desktop.json && \
-    docker compose exec openclaw-gateway gog auth add \"$GOG_ACCOUNT\" --services gmail,calendar,drive,contacts,sheets,docs" || {
+    docker compose exec -T $GOG_DOCKER_ENV openclaw-gateway gog auth credentials /home/node/.openclaw/client_secret_desktop.json" || {
+    echo ""
+    echo "[WARNING] Failed to register GOG OAuth client credentials."
+    exit 1
+}
+
+echo "[...] Checking whether $GOG_ACCOUNT is already authenticated..."
+
+if ssh $SSH_OPTS "$VPS_USER@$VPS_IP" \
+    "cd ~/openclaw && \
+    docker compose exec -T $GOG_DOCKER_ENV openclaw-gateway gog auth list --json --no-input | grep -F '\"$GOG_ACCOUNT\"' >/dev/null"; then
+    echo "[OK] $GOG_ACCOUNT is already authenticated; skipping OAuth browser flow."
+else
+    echo ""
+    echo "[...] Triggering interactive OAuth flow..."
+    echo "You will likely be given a URL to open in your browser."
+    echo "Please follow the instructions on screen."
+    echo ""
+
+    # We use -t to force pseudo-terminal allocation for interactive auth.
+    ssh -t $SSH_OPTS "$VPS_USER@$VPS_IP" \
+        "cd ~/openclaw && \
+        docker compose exec $GOG_DOCKER_ENV openclaw-gateway gog auth add \"$GOG_ACCOUNT\" --services gmail,calendar,drive,contacts,sheets,docs" || {
     echo ""
     echo "[WARNING] Authentication command failed or returned non-zero."
     echo "If the command is incorrect, you may need to run it manually."
     exit 1
 }
+fi
 
 echo ""
 echo "=== Done ==="
 echo ""
 echo "Your GOG integration should now be authenticated."
-echo "Since GOG_KEYRING_BACKEND is set to file, credentials should persist across redeploys."
+echo "GOG config and file-keyring state should persist under ~/.openclaw across redeploys."
