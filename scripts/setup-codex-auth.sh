@@ -71,7 +71,7 @@ echo ""
 
 # We use -t to force pseudo-terminal allocation for interactive auth
 ssh -t $SSH_OPTS "$VPS_USER@$VPS_IP" \
-    "cd ~/openclaw && docker compose exec openclaw-gateway openclaw models auth login --provider openai-codex" || {
+    "cd ~/openclaw && docker compose exec openclaw-gateway openclaw models auth login --provider openai --device-code" || {
     echo ""
     echo "[WARNING] Authentication command failed or returned non-zero."
     echo "If the command is incorrect, you may need to run it manually."
