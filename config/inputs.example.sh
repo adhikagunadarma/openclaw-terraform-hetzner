@@ -114,6 +114,8 @@ export TF_VAR_tailscale_auth_key=""
 # Used to authenticate Google accounts (e.g. for calendar/gmail access).
 # Set these from your Google Cloud Console OAuth 2.0 Client IDs.
 # Then run: ./scripts/setup-gog-auth.sh
+# The script reuses existing OAuth tokens when present and only opens the
+# browser auth flow when the account is not already authenticated.
 # export GOG_CLIENT_ID=""
 # export GOG_PROJECT_ID="pepongclaw"
 # export GOG_CLIENT_SECRET=""
