@@ -15,6 +15,7 @@ SHELL := /bin/bash
 # Default values
 ENV ?= prod
 TERRAFORM_DIR := infra/terraform/envs/$(ENV)
+GOG_AUTH_FLAGS ?=
 
 # Server IP - can be overridden or read from Terraform
 SERVER_IP ?= $(shell cd $(TERRAFORM_DIR) && terraform output -raw server_ip 2>/dev/null)
@@ -121,7 +122,7 @@ setup-auth: ## Set up Claude subscription auth on the VPS
 
 setup-gog-auth: ## Set up Google authentication on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Google authentication..."
-	@./scripts/setup-gog-auth.sh $(SERVER_IP)
+	@./scripts/setup-gog-auth.sh $(GOG_AUTH_FLAGS) $(SERVER_IP)
 
 setup-codex-auth: ## Set up OpenAI Codex (ChatGPT) authentication on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Codex authentication..."

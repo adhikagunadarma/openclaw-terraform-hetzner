@@ -249,6 +249,14 @@ Instead of manually registering credentials inside the container, you can use th
    ```
    This automatically writes `client_secret_desktop.json` to `~/.openclaw/`, registers it inside the container, and checks whether the configured account is already authenticated. If the account token still exists, the script exits without opening the browser OAuth flow.
 
+   If you need to refresh scopes or force a new consent flow even when a token
+   already exists, run:
+   ```bash
+   ./scripts/setup-gog-auth.sh --forced
+   # or:
+   make setup-gog-auth GOG_AUTH_FLAGS=--forced
+   ```
+
 2. **Open the Google URL**:
    If no valid token exists, the terminal will print a URL starting with `https://accounts.google.com/o/oauth2/auth...`. Open this link in your local web browser, sign in, and authorize the app.
 

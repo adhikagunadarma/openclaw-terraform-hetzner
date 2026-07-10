@@ -3,16 +3,60 @@
 # OpenClaw Setup GOG Auth Script
 # =============================================================================
 # Purpose: Push Google OAuth client_secret.json to the VPS and authenticate.
-# Usage: ./scripts/setup-gog-auth.sh [VPS_IP]
+# Usage: ./scripts/setup-gog-auth.sh [--force|--forced|-f] [VPS_IP]
 #
 # This script:
 #   1. Reads GOG_CLIENT_ID, GOG_PROJECT_ID, and GOG_CLIENT_SECRET from the env
 #   2. Writes client_secret_desktop.json directly to the VPS host volume
 #   3. Registers the OAuth client in the persistent gog config path
 #   4. Reuses an existing token when present, or triggers interactive auth
+#   5. Optionally forces interactive reauth to refresh scopes/tokens
 # =============================================================================
 
 set -euo pipefail
+
+usage() {
+    cat <<EOF
+Usage: $0 [--force|--forced|-f] [VPS_IP]
+
+Options:
+  --force, --forced, -f  Always trigger interactive OAuth flow even if the
+                         configured Google account already appears authenticated.
+  -h, --help             Show this help.
+EOF
+}
+
+FORCE_REAUTH=0
+VPS_IP_ARG=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --force|--forced|-f)
+            FORCE_REAUTH=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option '$1'"
+            echo ""
+            usage
+            exit 1
+            ;;
+        *)
+            if [[ -n "$VPS_IP_ARG" ]]; then
+                echo "Error: Multiple VPS IP arguments provided"
+                echo ""
+                usage
+                exit 1
+            fi
+            VPS_IP_ARG="$1"
+            shift
+            ;;
+    esac
+done
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -48,8 +92,8 @@ GOG_ACCOUNT="${GOG_ACCOUNT:-pepperwhiskey29@gmail.com}"
 # Get VPS IP
 # -----------------------------------------------------------------------------
 
-if [[ -n "${1:-}" ]]; then
-    VPS_IP="$1"
+if [[ -n "$VPS_IP_ARG" ]]; then
+    VPS_IP="$VPS_IP_ARG"
 elif [[ -n "${SERVER_IP:-}" ]]; then
     VPS_IP="$SERVER_IP"
 else
@@ -68,6 +112,9 @@ fi
 
 echo "=== OpenClaw Setup GOG Auth ==="
 echo "VPS IP: $VPS_IP"
+if [[ "$FORCE_REAUTH" -eq 1 ]]; then
+    echo "Mode: forced reauthentication"
+fi
 echo ""
 
 # -----------------------------------------------------------------------------
@@ -132,9 +179,13 @@ ssh $SSH_OPTS "$VPS_USER@$VPS_IP" \
     exit 1
 }
 
-echo "[...] Checking whether $GOG_ACCOUNT is already authenticated..."
+if [[ "$FORCE_REAUTH" -eq 1 ]]; then
+    echo "[INFO] Forced reauth requested; skipping existing-token check."
+else
+    echo "[...] Checking whether $GOG_ACCOUNT is already authenticated..."
+fi
 
-if ssh $SSH_OPTS "$VPS_USER@$VPS_IP" \
+if [[ "$FORCE_REAUTH" -eq 0 ]] && ssh $SSH_OPTS "$VPS_USER@$VPS_IP" \
     "cd ~/openclaw && \
     docker compose exec -T $GOG_DOCKER_ENV openclaw-gateway gog auth list --json --no-input | grep -F '\"$GOG_ACCOUNT\"' >/dev/null"; then
     echo "[OK] $GOG_ACCOUNT is already authenticated; skipping OAuth browser flow."

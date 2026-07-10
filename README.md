@@ -158,6 +158,8 @@ make tailscale-up       # Manually authenticate Tailscale
 make push-env    # Push environment variables
 make push-config # Push OpenClaw configuration
 make setup-auth  # Configure Claude subscription auth
+make setup-gog-auth                    # Reuse existing Google auth when present
+make setup-gog-auth GOG_AUTH_FLAGS=--forced  # Force Google reauth
 ```
 
 ## Configuration
