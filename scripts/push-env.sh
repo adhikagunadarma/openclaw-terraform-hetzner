@@ -28,6 +28,8 @@ REMOTE_PATH="/home/openclaw/openclaw/.env"
 REQUIRED_VARS=(
     TELEGRAM_BOT_TOKEN
     OPENCLAW_GATEWAY_TOKEN
+    WHATSAPP_ADMIN_1
+    WHATSAPP_ADMIN_2
 )
 
 # -----------------------------------------------------------------------------
