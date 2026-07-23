@@ -160,7 +160,14 @@ make push-config # Push OpenClaw configuration
 make setup-auth  # Configure Claude subscription auth
 make setup-gog-auth                    # Reuse existing Google auth when present
 make setup-gog-auth GOG_AUTH_FLAGS=--forced  # Force Google reauth
+make setup-whatsapp-auth # Check, link, or repair the default WhatsApp session
 ```
+
+`make setup-whatsapp-auth` is idempotent when the channel is healthy. If the
+default WhatsApp listener is logged out, it opens an interactive SSH terminal
+and renders one fresh QR directly there. It does not retry automatically. When
+WhatsApp displays a linking cooldown, cancel the command and wait for that timer
+to expire before trying again.
 
 ## Configuration
 
