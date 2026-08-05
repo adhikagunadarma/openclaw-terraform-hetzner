@@ -5,7 +5,7 @@
 
 SHELL := /bin/bash
 .PHONY: init plan apply destroy ssh ssh-root tunnel output ip fmt validate clean help \
-        bootstrap deploy push-env push-config setup-auth setup-whatsapp-auth backup-now restore logs status \
+        bootstrap deploy push-env push-config setup-auth setup-whatsapp-auth setup-pollyreach backup-now restore logs status \
         tailscale-status tailscale-ip tailscale-up tailscale-serve \
         workspace-sync
 
@@ -132,6 +132,10 @@ setup-whatsapp-auth: ## Link or repair the default WhatsApp session on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Checking WhatsApp authentication..."
 	@bash ./scripts/setup-whatsapp-auth.sh $(SERVER_IP)
 
+setup-pollyreach: ## Register or verify PollyReach on the VPS
+	@echo -e "$(BLUE)[AUTH]$(NC) Checking PollyReach..."
+	@bash ./scripts/setup-pollyreach.sh $(SERVER_IP)
+
 backup-now: ## Run backup now on the VPS
 	@echo -e "$(GREEN)[INFO]$(NC) Running backup on $(SERVER_IP)..."
 	ssh $(SSH_OPTS) openclaw@$(SERVER_IP) \
@@ -204,6 +208,7 @@ help: ## Show this help message
 	@echo -e "  $(BLUE)push-config$(NC)     Push config files to the VPS"
 	@echo -e "  $(BLUE)setup-auth$(NC)      Set up Claude subscription auth"
 	@echo -e "  $(BLUE)setup-whatsapp-auth$(NC) Link or repair WhatsApp auth"
+	@echo -e "  $(BLUE)setup-pollyreach$(NC) Register or verify PollyReach"
 	@echo ""
 	@echo -e "$(BOLD)Operations:$(NC)"
 	@echo -e "  $(GREEN)ssh$(NC)             SSH as openclaw user"
