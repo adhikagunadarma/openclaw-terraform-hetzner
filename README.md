@@ -481,6 +481,43 @@ ssh openclaw@VPS_IP "sudo chown -R openclaw:openclaw ~/.openclaw"
 
 Then re-run `make bootstrap` or `make setup-auth`.
 
+### Deploy Pull Fails with GHCR `denied`
+
+If `make deploy` fails while pulling an image and reports `denied`, the VPS's
+saved GitHub Container Registry credentials are missing, expired, revoked, or
+do not have access to the private package.
+
+1. Create or rotate a GitHub personal access token with `read:packages`
+   permission. If the package belongs to an organization that enforces SSO,
+   authorize the token for that organization.
+2. Update `GHCR_USERNAME` and `GHCR_TOKEN` in `config/inputs.sh`.
+3. Reload the values, refresh the VPS login, and retry the deployment:
+
+```bash
+source config/inputs.sh
+printf '%s' "$GHCR_TOKEN" | \
+  ssh openclaw@"$SERVER_IP" \
+  "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin"
+make deploy
+```
+
+Do not paste the token directly into the command or commit
+`config/inputs.sh`. A successful `docker login` confirms authentication; the
+subsequent pull still requires the account to have access to the package.
+
+### `push-config` Cannot Find `CONFIG_DIR`
+
+Use an absolute path or `$HOME` in `config/inputs.sh`; a quoted leading `~`
+is treated literally and does not expand:
+
+```bash
+# Correct
+export CONFIG_DIR="$HOME/Project/Personal/pepongclaw/openclaw-docker-config"
+
+source config/inputs.sh
+make push-config
+```
+
 ### Bootstrap Fails
 
 **Verify prerequisites:**

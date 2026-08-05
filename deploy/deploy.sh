@@ -101,7 +101,7 @@ fi
 echo -e "${BOLD}Pull${NC}"
 echo ""
 echo -ne "  Pulling latest image...  "
-if docker compose $PROFILES pull --quiet 2>/dev/null; then
+if docker compose $PROFILES pull --quiet; then
     echo -e "${G}done${NC}"
 else
     echo -e "${R}failed${NC}"
