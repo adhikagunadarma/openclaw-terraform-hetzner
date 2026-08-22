@@ -134,7 +134,7 @@ setup-whatsapp-auth: ## Link or repair the default WhatsApp session on the VPS
 
 set-cron-models: ## Route all model-backed cron jobs through GPT-5.6 Luna at low effort
 	@echo -e "$(BLUE)[CONFIG]$(NC) Updating cron model overrides..."
-	@bash ./scripts/set-cron-models.sh $(SERVER_IP)
+	@bash ./scripts/set-cron-models.sh
 
 setup-pollyreach: ## Register or verify PollyReach on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Checking PollyReach..."
