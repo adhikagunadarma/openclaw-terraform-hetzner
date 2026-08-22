@@ -119,6 +119,26 @@ else
     exit 1
 fi
 
+echo -ne "  Waiting for gateway...   "
+READY=false
+for _ in $(seq 1 60); do
+    if docker compose exec -T openclaw-gateway openclaw health >/dev/null 2>&1; then
+        READY=true
+        break
+    fi
+    sleep 5
+done
+
+if [[ "$READY" == "true" ]]; then
+    echo -e "${G}healthy${NC}"
+else
+    echo -e "${R}failed${NC}"
+    echo ""
+    echo -e "${R}Gateway did not become healthy within 5 minutes.${NC}"
+    docker compose logs --tail 120 --no-color openclaw-gateway || true
+    exit 1
+fi
+
 # Stop workspace-sync containers if they were running but sync is now disabled
 if [[ "$SYNC_ENABLED" == "false" ]]; then
     if docker compose ps --format '{{.Name}}' 2>/dev/null | grep -q workspace-sync; then

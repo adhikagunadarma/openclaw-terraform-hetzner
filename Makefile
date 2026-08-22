@@ -5,7 +5,7 @@
 
 SHELL := /bin/bash
 .PHONY: init plan apply destroy ssh ssh-root tunnel output ip fmt validate clean help \
-        bootstrap deploy push-env push-config setup-auth setup-whatsapp-auth setup-pollyreach backup-now restore logs status \
+        bootstrap deploy push-env push-config setup-auth setup-whatsapp-auth setup-pollyreach set-cron-models backup-now restore logs status \
         tailscale-status tailscale-ip tailscale-up tailscale-serve \
         workspace-sync
 
@@ -131,6 +131,10 @@ setup-codex-auth: ## Set up OpenAI Codex (ChatGPT) authentication on the VPS
 setup-whatsapp-auth: ## Link or repair the default WhatsApp session on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Checking WhatsApp authentication..."
 	@bash ./scripts/setup-whatsapp-auth.sh $(SERVER_IP)
+
+set-cron-models: ## Route all model-backed cron jobs through GPT-5.6 Luna at low effort
+	@echo -e "$(BLUE)[CONFIG]$(NC) Updating cron model overrides..."
+	@bash ./scripts/set-cron-models.sh $(SERVER_IP)
 
 setup-pollyreach: ## Register or verify PollyReach on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Checking PollyReach..."
