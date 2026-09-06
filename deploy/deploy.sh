@@ -58,6 +58,7 @@ echo ""
 # -----------------------------------------------------------------------------
 
 ssh $SSH_OPTS "$VPS_USER@$VPS_IP" bash -s << 'REMOTE_SCRIPT'
+set -euo pipefail
 
 # Colors
 G='\033[0;32m'
@@ -86,7 +87,7 @@ if [[ -f docker-compose.yml ]]; then
         | sort -u \
         | while read -r agent; do
             mkdir -p "$WORKSPACE_BASE/$agent"
-        done
+        done || true
 fi
 
 # Enable workspace sync profile if GIT_WORKSPACE_REPO or GIT_WORKSPACE_REMOTE is configured
@@ -121,8 +122,9 @@ fi
 
 echo -ne "  Waiting for gateway...   "
 READY=false
-for _ in $(seq 1 60); do
-    if docker compose exec -T openclaw-gateway openclaw health >/dev/null 2>&1; then
+HEALTH_DEADLINE=$((SECONDS + 300))
+while (( SECONDS < HEALTH_DEADLINE )); do
+    if timeout 15s docker compose exec -T openclaw-gateway openclaw health </dev/null >/dev/null 2>&1; then
         READY=true
         break
     fi

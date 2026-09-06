@@ -20,9 +20,10 @@ set -euo pipefail
 # Configuration
 # -----------------------------------------------------------------------------
 
-BACKUP_DIR="$HOME/backups"
+BACKUP_DIR="${2:-$HOME/backups}"
 SOURCE_DIR="$HOME/.openclaw"
 RETENTION_DAYS=7
+PRESERVE_BACKUPS="${1:-false}"
 
 # -----------------------------------------------------------------------------
 # Create backup directory
@@ -45,7 +46,7 @@ fi
 # -----------------------------------------------------------------------------
 
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="$BACKUP_DIR/openclaw_backup_$TIMESTAMP.tar.gz"
+BACKUP_FILE=$(mktemp "$BACKUP_DIR/openclaw_backup_${TIMESTAMP}_XXXXXX.tar.gz")
 
 echo "=== OpenClaw Backup ==="
 echo "Source: $SOURCE_DIR"
@@ -56,6 +57,8 @@ echo "[...] Creating backup..."
 
 # Create tar.gz archive
 tar -czf "$BACKUP_FILE" -C "$HOME" ".openclaw"
+gzip -t "$BACKUP_FILE"
+tar -tzf "$BACKUP_FILE" >/dev/null
 
 # Get backup size
 BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
@@ -67,13 +70,20 @@ echo "[OK] Backup created: $BACKUP_FILE ($BACKUP_SIZE)"
 # -----------------------------------------------------------------------------
 
 echo ""
-echo "[...] Cleaning up backups older than $RETENTION_DAYS days..."
+if [[ "$PRESERVE_BACKUPS" == "true" ]]; then
+    echo "[OK] Retention cleanup disabled; preserving all existing backups."
+else
+    echo "[...] Cleaning up backups older than $RETENTION_DAYS days..."
+fi
 
 # Find and delete old backups
-OLD_COUNT=$(find "$BACKUP_DIR" -name "openclaw_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS | wc -l)
+OLD_COUNT=0
+if [[ "$PRESERVE_BACKUPS" != "true" ]]; then
+    OLD_COUNT=$(find "$BACKUP_DIR" -maxdepth 1 -name "openclaw_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS | wc -l)
+fi
 
 if [[ $OLD_COUNT -gt 0 ]]; then
-    find "$BACKUP_DIR" -name "openclaw_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS -delete
+    find "$BACKUP_DIR" -maxdepth 1 -name "openclaw_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS -delete
     echo "[OK] Deleted $OLD_COUNT old backup(s)"
 else
     echo "[OK] No old backups to delete"

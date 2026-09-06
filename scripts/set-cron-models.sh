@@ -30,7 +30,7 @@ echo "Setting every model-backed cron job to $MODEL with $THINKING thinking..."
 
 remote_compose='cd "$HOME/openclaw" && docker compose exec -T openclaw-gateway'
 jobs_json=$(ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
-    "$remote_compose openclaw cron list --json")
+    "$remote_compose openclaw cron list --all --json")
 
 if ! jq -e '.jobs | type == "array"' >/dev/null <<<"$jobs_json"; then
     echo "Error: Gateway did not return valid cron JSON." >&2
@@ -52,13 +52,16 @@ while IFS= read -r row; do
     fi
     echo "Updating $job_name ($job_id)..."
     ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
-        "$remote_compose openclaw cron edit '$job_id' --model '$MODEL' --thinking '$THINKING'"
+        "$remote_compose openclaw cron edit '$job_id' --model '$MODEL' --thinking '$THINKING'" \
+        | jq '{id, model: .payload.model, thinking: .payload.thinking}'
 done < <(
     jq -r '.jobs[] | select(.payload.kind == "agentTurn") | [.id, .name] | @tsv' \
         <<<"$jobs_json"
 )
 
-echo "Updated $job_count model-backed cron job(s)."
-ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
-    "$remote_compose openclaw cron list --json" \
-    | jq '{jobs: [.jobs[] | {id, name, kind: .payload.kind, model: .payload.model, thinking: .payload.thinking}]}'
+verified_json=$(ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
+    "$remote_compose openclaw cron list --all --json")
+jq -e --arg model "$MODEL" --arg thinking "$THINKING" \
+    '[.jobs[] | select(.payload.kind == "agentTurn")] | all(.payload.model == $model and .payload.thinking == $thinking)' \
+    >/dev/null <<<"$verified_json"
+echo "Verified $job_count model-backed cron job(s), including disabled jobs."

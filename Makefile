@@ -16,6 +16,7 @@ SHELL := /bin/bash
 ENV ?= prod
 TERRAFORM_DIR := infra/terraform/envs/$(ENV)
 GOG_AUTH_FLAGS ?=
+PRESERVE_BACKUPS ?= false
 
 # Server IP - can be overridden or read from Terraform
 SERVER_IP ?= $(shell cd $(TERRAFORM_DIR) && terraform output -raw server_ip 2>/dev/null)
@@ -143,7 +144,7 @@ setup-pollyreach: ## Register or verify PollyReach on the VPS
 backup-now: ## Run backup now on the VPS
 	@echo -e "$(GREEN)[INFO]$(NC) Running backup on $(SERVER_IP)..."
 	ssh $(SSH_OPTS) openclaw@$(SERVER_IP) \
-		'bash -s' < ./deploy/backup.sh
+		'bash -s -- $(PRESERVE_BACKUPS)' < ./deploy/backup.sh
 
 restore: ## Restore from backup (use BACKUP=filename)
 ifndef BACKUP
