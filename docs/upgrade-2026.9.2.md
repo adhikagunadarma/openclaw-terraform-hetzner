@@ -2,10 +2,10 @@
 
 Target release: https://github.com/openclaw/openclaw/releases/tag/v2026.9.2
 
-This is a fresh release, not a guarantee of production stability. Validate the
-actual gateway, plugin migrations, channel routing and account model access.
-Node 22.23.1 satisfies this release's supported Node range. The Docker build
-pins core, Codex, WhatsApp and Brave to 2026.9.2 together.
+The repositories are the source of truth. `openclaw-docker-config` pins the
+application and plugin versions and owns `config/openclaw.json`.
+`openclaw-terraform-hetzner` deploys that image, environment and config. Do not
+create a second, untracked configuration by patching `openclaw.json` on the VPS.
 
 ## Model policy
 
@@ -18,69 +18,58 @@ pins core, Codex, WhatsApp and Brave to 2026.9.2 together.
 | Subagents and utility model | `openai/gpt-5.6-luna` | `low` |
 | PDF analysis | `openai/gpt-5.6-luna` | configured default `low` |
 
-Sol, Terra and the other manually selectable models remain exposed. Image
-generation stays on GPT Image 2; Luna is not an image-generation replacement.
-Codex owns native compaction: Doctor removes OpenClaw's separate compaction
-model override, so compaction cannot be promised to run on Luna.
+Sol, Terra and the other configured models remain exposed for manual use.
+Image generation stays on GPT Image 2. Codex owns native compaction in this
+release, so Doctor removes a separate OpenClaw compaction-model override.
 
-Heartbeat has no separate `thinking` property; the dedicated heartbeat agent
-sets `thinkingDefault: low`. Cron stores `payload.model` and `payload.thinking`
-per job. In 2026.9.2 isolated cron also considers the configured subagent model,
-but explicit payload/session/hook overrides can take precedence. Specify Luna
-and low when creating new jobs; rerun `make set-cron-models` to enforce the
-policy across all existing jobs. This does not change their schedules or
-enabled flags.
+Heartbeat does not have a separate `thinking` property; its dedicated agent
+sets `thinkingDefault: low`. Cron stores model and thinking per job, so run
+`make set-cron-models` after deployment and after adding model-backed jobs.
 
-## Backup and deployment
+## Deployment order
 
-Run commands from `openclaw-terraform-hetzner`:
+First confirm that CI successfully published the 2026.9.2 gateway as `latest`.
+Then run from `openclaw-terraform-hetzner`:
 
 ```bash
 source config/inputs.sh
 make backup-now PRESERVE_BACKUPS=true
+make deploy
+make push-env
+make push-config
+make set-cron-models
 ```
 
-Ordinary live backups may include changing databases. For this upgrade,
-`deploy/upgrade-gateway-2026.9.2.sh` stops the gateway before the snapshot,
-verifies the archive, applies the scoped JQ migration to the existing live
-config, and starts the staged image. It automatically restores the original
-state/image on startup/readiness failure, preserving the failed state for
-diagnosis. It must run from a NEW private directory on the VPS containing
-`backup.sh`, the upgrade script and `upgrade-2026.9.2-models.jq`. It is a
-version-specific maintenance script, not a generic replacement for deploy.
+The order is intentional for this schema-changing upgrade. `make deploy`
+starts 2026.9.2 against the existing configuration and lets OpenClaw Doctor
+migrate persisted state. Only then does `make push-config` activate the
+repository's canonical 2026.9.2 config. Pushing that config while 2026.7.1-2 is
+still running risks an old process hot-reloading a newer schema.
 
-The September 6 preparation was cancelled at the user's request. The original
-deployment was restored from its snapshot; the candidate state was preserved
-separately for diagnosis. Do not reuse that directory for another upgrade.
-Its directory is:
-`/home/openclaw/backups/upgrade-2026.9.2-ET3GMGQK`.
-The snapshot filename is
-`openclaw_backup_20260906_105558_kBgX2s.tar.gz`.
-The directory also holds the original Compose file/environment and rollback
-image tag. Do not commit its contents: they contain credentials and user data.
-No existing backup is overwritten or removed by this upgrade.
+`make push-env` may be omitted when `secrets/openclaw.env` has not changed. It
+is included above when the goal is to reconcile every repository-managed input
+with the VPS. Both push commands currently restart the gateway, so expect more
+than one restart. A future atomic release target can stage all inputs and
+perform one restart without changing the source-of-truth model.
 
-The candidate is staged under the separate image tag
-`upgrade-2026.9.2-20260906`; the normal `latest` tag should only be promoted
-after production validation. Do not run an ordinary `make deploy` during that
-validation window, because it pulls the previously published `latest` image.
-
-## Post-upgrade checks
+## Verification
 
 ```bash
 source config/inputs.sh
 make status
-make set-cron-models
 ```
 
-Check `openclaw --version`, `openclaw config validate --json`,
-`openclaw plugins list`, `openclaw health`, and the account-discovered model
-catalog inside the gateway container. Test Astra and Luna in separate
-non-delivering sessions; a healthy gateway alone does not prove model access.
-Finally send a normal Telegram message and test the owner's `/model` command.
-Existing conversations may retain session-level model/thinking overrides.
+```bash
+ssh openclaw@"$SERVER_IP" '
+  cd ~/openclaw
+  docker compose exec -T openclaw-gateway openclaw --version
+  docker compose exec -T openclaw-gateway openclaw config validate --json
+  docker compose exec -T openclaw-gateway openclaw health --json
+  docker compose exec -T openclaw-gateway openclaw plugins list
+'
+```
 
-The local template uses canonical `agents.entries`, explicit channel bindings,
-`mediaModels.image`, and omits retired tuning/logging fields. For upgrades,
-patch the existing live config instead of `make push-config`, which replaces
-it and can discard customizations made through OpenClaw.
+Test Astra and Luna in separate new sessions, then send a normal Telegram
+message and test the owner's `/model` command. Existing conversations may keep
+session-level model or thinking overrides. A healthy gateway also does not by
+itself prove that the connected OpenAI account is entitled to Astra.
