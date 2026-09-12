@@ -11,14 +11,14 @@ create a second, untracked configuration by patching `openclaw.json` on the VPS.
 
 | Surface | Model | Thinking |
 | --- | --- | --- |
-| Main agent | `openai/gpt-6-astra` | `low` |
+| Main agent | `openai/gpt-5.6-sol` | `low` |
 | Main fallback | `openai/gpt-5.6-luna` | `low` |
 | Dedicated heartbeat agent | `openai/gpt-5.6-luna` | `low` |
 | Stored model-backed cron jobs, enabled and disabled | `openai/gpt-5.6-luna` | `low` |
 | Subagents and utility model | `openai/gpt-5.6-luna` | `low` |
 | PDF analysis | `openai/gpt-5.6-luna` | configured default `low` |
 
-Sol, Terra and the other configured models remain exposed for manual use.
+Astra, Terra and the other configured models remain exposed for manual use.
 Image generation stays on GPT Image 2. Codex owns native compaction in this
 release, so Doctor removes a separate OpenClaw compaction-model override.
 
@@ -28,7 +28,14 @@ sets `thinkingDefault: low`. Cron stores model and thinking per job, so run
 
 ## Deployment order
 
-First confirm that CI successfully published the 2026.9.2 gateway as `latest`.
+This repository does not have a CI image build. Build and publish `latest`
+locally from `openclaw-docker-config` first:
+
+```bash
+export GHCR_USERNAME=adhikagunadarma
+bash scripts/build-and-push.sh
+```
+
 Then run from `openclaw-terraform-hetzner`:
 
 ```bash
@@ -69,7 +76,7 @@ ssh openclaw@"$SERVER_IP" '
 '
 ```
 
-Test Astra and Luna in separate new sessions, then send a normal Telegram
+Test Sol, Astra and Luna in separate new sessions, then send a normal Telegram
 message and test the owner's `/model` command. Existing conversations may keep
 session-level model or thinking overrides. A healthy gateway also does not by
 itself prove that the connected OpenAI account is entitled to Astra.

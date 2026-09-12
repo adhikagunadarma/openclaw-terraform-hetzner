@@ -5,7 +5,7 @@
 
 SHELL := /bin/bash
 .PHONY: init plan apply destroy ssh ssh-root tunnel output ip fmt validate clean help \
-        bootstrap deploy push-env push-config setup-auth setup-whatsapp-auth setup-pollyreach set-cron-models backup-now restore logs status \
+        bootstrap deploy push-env push-config push-backup-script setup-auth setup-whatsapp-auth setup-pollyreach set-cron-models backup-now backup-upgrade restore logs status \
         tailscale-status tailscale-ip tailscale-up tailscale-serve \
         workspace-sync
 
@@ -117,6 +117,13 @@ push-config: ## Push config files from CONFIG_DIR to the VPS
 	@echo -e "$(BLUE)[DEPLOY]$(NC) Pushing config to VPS..."
 	@./scripts/push-config.sh $(SERVER_IP)
 
+push-backup-script: ## Install the repository backup script used by the daily timer
+	@echo -e "$(BLUE)[DEPLOY]$(NC) Updating backup script on VPS..."
+	@scp $(SSH_OPTS) ./deploy/backup.sh openclaw@$(SERVER_IP):~/scripts/backup.sh.new
+	@ssh $(SSH_OPTS) openclaw@$(SERVER_IP) \
+		'install -m 700 ~/scripts/backup.sh.new ~/scripts/backup.sh && rm ~/scripts/backup.sh.new'
+	@echo -e "$(GREEN)[OK]$(NC) Backup script updated without restarting the gateway."
+
 setup-auth: ## Set up Claude subscription auth on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Claude subscription auth..."
 	@./scripts/setup-auth.sh $(SERVER_IP)
@@ -144,7 +151,13 @@ setup-pollyreach: ## Register or verify PollyReach on the VPS
 backup-now: ## Run backup now on the VPS
 	@echo -e "$(GREEN)[INFO]$(NC) Running backup on $(SERVER_IP)..."
 	ssh $(SSH_OPTS) openclaw@$(SERVER_IP) \
-		'bash -s -- $(PRESERVE_BACKUPS)' < ./deploy/backup.sh
+		'bash -s -- $(PRESERVE_BACKUPS) "$$HOME/backups" live' < ./deploy/backup.sh
+
+backup-upgrade: ## Create a verified backup while automatically pausing the gateway
+	@echo -e "$(YELLOW)[WARN]$(NC) The gateway will be unavailable while its state is archived."
+	@echo -e "$(GREEN)[INFO]$(NC) Creating migration-safe backup on $(SERVER_IP)..."
+	ssh $(SSH_OPTS) openclaw@$(SERVER_IP) \
+		'bash -s -- $(PRESERVE_BACKUPS) "$$HOME/backups" consistent' < ./deploy/backup.sh
 
 restore: ## Restore from backup (use BACKUP=filename)
 ifndef BACKUP
@@ -211,6 +224,7 @@ help: ## Show this help message
 	@echo -e "  $(BLUE)deploy$(NC)          Pull latest image and restart container"
 	@echo -e "  $(BLUE)push-env$(NC)        Push secrets/openclaw.env to the VPS"
 	@echo -e "  $(BLUE)push-config$(NC)     Push config files to the VPS"
+	@echo -e "  $(BLUE)push-backup-script$(NC) Install the repository backup script"
 	@echo -e "  $(BLUE)setup-auth$(NC)      Set up Claude subscription auth"
 	@echo -e "  $(BLUE)setup-whatsapp-auth$(NC) Link or repair WhatsApp auth"
 	@echo -e "  $(BLUE)setup-pollyreach$(NC) Register or verify PollyReach"
@@ -222,6 +236,7 @@ help: ## Show this help message
 	@echo -e "  $(GREEN)status$(NC)          Check VPS status"
 	@echo -e "  $(GREEN)logs$(NC)            Stream Docker logs"
 	@echo -e "  $(GREEN)backup-now$(NC)      Run backup now"
+	@echo -e "  $(GREEN)backup-upgrade$(NC)  Create a verified backup with an automatic gateway pause"
 	@echo -e "  $(GREEN)restore$(NC)         Restore from backup (BACKUP=filename)"
 	@echo -e "  $(GREEN)workspace-sync$(NC)  Sync workspace to GitHub now"
 	@echo -e "  $(GREEN)output$(NC)          Show Terraform outputs"
