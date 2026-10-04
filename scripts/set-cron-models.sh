@@ -23,7 +23,7 @@ else
     exit 1
 fi
 
-MODEL="openai/gpt-5.6-luna"
+MODEL="openai/gpt-6-luna"
 THINKING="low"
 
 echo "Setting every model-backed cron job to $MODEL with $THINKING thinking..."
