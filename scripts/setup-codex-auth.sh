@@ -16,6 +16,11 @@ VPS_USER="openclaw"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new"
 [[ -n "${SSH_KEY:-}" ]] && SSH_OPTS+=" -i $SSH_KEY"
 TERRAFORM_DIR="infra/terraform/envs/prod"
+AUTH_AGENT="${2:-main}"
+[[ "$AUTH_AGENT" =~ ^[A-Za-z0-9_-]+$ ]] || {
+    echo "Error: Invalid agent id: $AUTH_AGENT" >&2
+    exit 2
+}
 
 # -----------------------------------------------------------------------------
 # Source environment variables if files exist
@@ -71,7 +76,7 @@ echo ""
 
 # We use -t to force pseudo-terminal allocation for interactive auth
 ssh -t $SSH_OPTS "$VPS_USER@$VPS_IP" \
-    "cd ~/openclaw && docker compose exec openclaw-gateway openclaw models auth login --provider openai --device-code" || {
+    "cd ~/openclaw && docker compose exec openclaw-gateway openclaw models auth login --agent '$AUTH_AGENT' --provider openai --device-code" || {
     echo ""
     echo "[WARNING] Authentication command failed or returned non-zero."
     echo "If the command is incorrect, you may need to run it manually."

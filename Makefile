@@ -17,6 +17,7 @@ ENV ?= prod
 TERRAFORM_DIR := infra/terraform/envs/$(ENV)
 GOG_AUTH_FLAGS ?=
 PRESERVE_BACKUPS ?= false
+AUTH_AGENT ?= main
 
 # Server IP - can be overridden or read from Terraform
 SERVER_IP ?= $(shell cd $(TERRAFORM_DIR) && terraform output -raw server_ip 2>/dev/null)
@@ -144,7 +145,7 @@ setup-gog-auth: ## Set up Google authentication on the VPS
 
 setup-codex-auth: ## Set up OpenAI Codex (ChatGPT) authentication on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Setting up Codex authentication..."
-	@./scripts/setup-codex-auth.sh $(SERVER_IP)
+	@bash ./scripts/setup-codex-auth.sh $(SERVER_IP) $(AUTH_AGENT)
 
 setup-whatsapp-auth: ## Link or repair the default WhatsApp session on the VPS
 	@echo -e "$(BLUE)[AUTH]$(NC) Checking WhatsApp authentication..."

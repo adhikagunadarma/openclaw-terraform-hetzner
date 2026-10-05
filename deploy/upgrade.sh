@@ -64,7 +64,7 @@ bash "$stage/backup.sh" true "$HOME/backups" consistent | tee "$recovery/backup.
 
 install -m 600 "$stage/openclaw.json" "$HOME/.openclaw/openclaw.json"
 printf '# Managed by deploy/upgrade.sh\nservices:\n  openclaw-gateway:\n    image: %s\n' "$image" > docker-compose.override.yml
-docker compose run --rm --no-deps -e OPENCLAW_UPGRADE_REPAIR=1 openclaw-gateway true
+docker compose run --rm --no-deps -e OPENCLAW_UPGRADE_REPAIR=1 openclaw-gateway true 2>&1 | tee "$recovery/repair.log"
 docker compose up -d openclaw-gateway
 ready=false
 deadline=$((SECONDS + 300))

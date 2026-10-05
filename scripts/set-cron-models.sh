@@ -26,7 +26,15 @@ fi
 MODEL="openai/gpt-6-luna"
 THINKING="low"
 
-echo "Setting every model-backed cron job to $MODEL with $THINKING thinking..."
+running_services=$(ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
+    'cd "$HOME/openclaw" && docker compose ps --status running --services')
+if ! grep -qx openclaw-gateway <<<"$running_services"; then
+    echo "Error: Gateway is stopped. Finish the upgrade/repair and verify make status before changing cron models." >&2
+    echo "No cron jobs were changed by this run." >&2
+    exit 1
+fi
+
+echo "Setting editable model-backed cron jobs to $MODEL with $THINKING thinking..."
 
 remote_compose='cd "$HOME/openclaw" && docker compose exec -T openclaw-gateway'
 jobs_json=$(ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
@@ -37,7 +45,7 @@ if ! jq -e '.jobs | type == "array"' >/dev/null <<<"$jobs_json"; then
     exit 1
 fi
 
-job_count=$(jq '[.jobs[] | select(.payload.kind == "agentTurn")] | length' \
+job_count=$(jq '[.jobs[] | select(.payload.kind == "agentTurn" and (.declarationKey? == null))] | length' \
     <<<"$jobs_json")
 if [[ "$job_count" -eq 0 ]]; then
     echo "No model-backed cron jobs found."
@@ -55,13 +63,13 @@ while IFS= read -r row; do
         "$remote_compose openclaw cron edit '$job_id' --model '$MODEL' --thinking '$THINKING'" \
         | jq '{id, model: .payload.model, thinking: .payload.thinking}'
 done < <(
-    jq -r '.jobs[] | select(.payload.kind == "agentTurn") | [.id, .name] | @tsv' \
+    jq -r '.jobs[] | select(.payload.kind == "agentTurn" and (.declarationKey? == null)) | [.id, .name] | @tsv' \
         <<<"$jobs_json"
 )
 
 verified_json=$(ssh -n $SSH_OPTS "$VPS_USER@$VPS_IP" \
     "$remote_compose openclaw cron list --all --json")
 jq -e --arg model "$MODEL" --arg thinking "$THINKING" \
-    '[.jobs[] | select(.payload.kind == "agentTurn")] | all(.payload.model == $model and .payload.thinking == $thinking)' \
+    '[.jobs[] | select(.payload.kind == "agentTurn" and (.declarationKey? == null))] | all(.payload.model == $model and .payload.thinking == $thinking)' \
     >/dev/null <<<"$verified_json"
-echo "Verified $job_count model-backed cron job(s), including disabled jobs."
+echo "Verified $job_count editable model-backed cron job(s), including disabled jobs. System-owned declared jobs were skipped."
