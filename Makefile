@@ -101,6 +101,16 @@ clean: ## Clean up Terraform files (keeps state)
 # Deploy Commands
 # =============================================================================
 
+UPGRADE_VERSION ?= 2026.9.8
+.PHONY: build upgrade
+
+build: ## Build and push version-tagged images from CONFIG_DIR
+	@test -n "$(CONFIG_DIR)" || { echo "Source config/inputs.sh first (CONFIG_DIR required)."; exit 1; }
+	@bash "$(CONFIG_DIR)/scripts/build-and-push.sh" "$(UPGRADE_VERSION)"
+
+upgrade: ## Back up stopped state, repair, and activate the version-tagged gateway
+	@bash ./deploy/upgrade.sh "$(SERVER_IP)" "$(CONFIG_DIR)" "$(GHCR_USERNAME)" "$(UPGRADE_VERSION)"
+
 bootstrap: ## Bootstrap OpenClaw on the VPS (run once after apply)
 	@echo -e "$(BLUE)[DEPLOY]$(NC) Bootstrapping OpenClaw on VPS..."
 	@./deploy/bootstrap.sh $(SERVER_IP)
