@@ -93,7 +93,6 @@ cd /Users/Pong/Project/Personal/pepongclaw/openclaw-terraform-hetzner
 source config/inputs.sh
 make deploy
 make push-config
-make set-cron-models
 make status
 ```
 
@@ -101,8 +100,6 @@ The order is intentional. `make deploy` first starts 2026.9.4 against the
 currently valid persisted configuration, reconciles the pinned plugin cohort
 and completes focused post-upgrade validation. `make push-config` then
 activates the committed Sol-low policy.
-`make set-cron-models` updates and verifies enabled and disabled model-backed
-jobs only after the new gateway is healthy.
 
 ## Verification
 

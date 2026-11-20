@@ -23,8 +23,7 @@ Image generation stays on GPT Image 2. Codex owns native compaction in this
 release, so Doctor removes a separate OpenClaw compaction-model override.
 
 Heartbeat does not have a separate `thinking` property; its dedicated agent
-sets `thinkingDefault: low`. Cron stores model and thinking per job, so run
-`make set-cron-models` after deployment and after adding model-backed jobs.
+sets `thinkingDefault: low`. Cron stores model and thinking per job.
 
 ## Deployment order
 
@@ -44,7 +43,6 @@ make backup-now PRESERVE_BACKUPS=true
 make deploy
 make push-env
 make push-config
-make set-cron-models
 ```
 
 The order is intentional for this schema-changing upgrade. `make deploy`
