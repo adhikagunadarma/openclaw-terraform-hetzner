@@ -64,12 +64,13 @@ bash "$stage/backup.sh" true "$HOME/backups" consistent | tee "$recovery/backup.
 
 install -m 600 "$stage/openclaw.json" "$HOME/.openclaw/openclaw.json"
 printf '# Managed by deploy/upgrade.sh\nservices:\n  openclaw-gateway:\n    image: %s\n' "$image" > docker-compose.override.yml
-docker compose run --rm --no-deps -e OPENCLAW_UPGRADE_REPAIR=1 openclaw-gateway true 2>&1 | tee "$recovery/repair.log"
+# The SSH session uses stdin for this script. Keep Compose from consuming it.
+docker compose run -T --rm --no-deps -e OPENCLAW_UPGRADE_REPAIR=1 openclaw-gateway true </dev/null 2>&1 | tee "$recovery/repair.log"
 docker compose up -d openclaw-gateway
 ready=false
-deadline=$((SECONDS + 300))
+deadline=$((SECONDS + 600))
 while (( SECONDS < deadline )); do
-    if timeout 15s docker compose exec -T openclaw-gateway openclaw health >/dev/null 2>&1; then
+    if timeout 35s docker compose exec -T openclaw-gateway openclaw health </dev/null >/dev/null 2>&1; then
         ready=true
         break
     fi

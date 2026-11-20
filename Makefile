@@ -102,7 +102,7 @@ clean: ## Clean up Terraform files (keeps state)
 # Deploy Commands
 # =============================================================================
 
-UPGRADE_VERSION ?= 2026.9.8
+UPGRADE_VERSION ?= 2026.11.6
 .PHONY: build upgrade
 
 build: ## Build and push version-tagged images from CONFIG_DIR
