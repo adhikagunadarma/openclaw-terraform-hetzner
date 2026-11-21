@@ -8,7 +8,7 @@
 # This script:
 #   1. Creates a timestamped tar.gz of ~/.openclaw
 #   2. Stores it in ~/backups/
-#   3. Removes backups older than 7 days before creating a new archive
+#   3. Rotates older archives only after the new archive passes verification
 #   4. Validates the archive before publishing it under its final name
 #
 # Note: This script is meant to run ON the VPS, not from your laptop.
@@ -23,7 +23,6 @@ set -euo pipefail
 
 BACKUP_DIR="${2:-$HOME/backups}"
 SOURCE_DIR="$HOME/.openclaw"
-RETENTION_DAYS=7
 PRESERVE_BACKUPS="${1:-false}"
 BACKUP_MODE="${3:-live}"
 COMPOSE_DIR="$HOME/openclaw"
@@ -62,6 +61,8 @@ trap cleanup EXIT
 # -----------------------------------------------------------------------------
 
 mkdir -p "$BACKUP_DIR"
+exec 9>"$BACKUP_DIR/.backup.lock"
+flock -n 9 || { echo "A backup is already running." >&2; exit 1; }
 
 # Remove hidden temporary archives left by an interrupted backup.
 find "$BACKUP_DIR" -maxdepth 1 -name '.openclaw_backup_*' -type f -delete
@@ -81,19 +82,6 @@ fi
 # -----------------------------------------------------------------------------
 
 echo "=== OpenClaw Backup ==="
-
-if [[ "$PRESERVE_BACKUPS" == "true" ]]; then
-    echo "[OK] Retention cleanup disabled; preserving all existing backups."
-else
-    echo "[...] Cleaning up backups older than $RETENTION_DAYS days..."
-    OLD_COUNT=$(find "$BACKUP_DIR" -maxdepth 1 -name "openclaw_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS | wc -l)
-    if [[ $OLD_COUNT -gt 0 ]]; then
-        find "$BACKUP_DIR" -maxdepth 1 -name "openclaw_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS -delete
-        echo "[OK] Deleted $OLD_COUNT old backup(s)"
-    else
-        echo "[OK] No old backups to delete"
-    fi
-fi
 
 SOURCE_KB=$(du -sk "$SOURCE_DIR" | awk '{print $1}')
 AVAILABLE_KB=$(df -Pk "$BACKUP_DIR" | awk 'NR == 2 {print $4}')
@@ -152,6 +140,11 @@ gzip -t "$PARTIAL_FILE"
 tar -tzf "$PARTIAL_FILE" >/dev/null
 mv -- "$PARTIAL_FILE" "$BACKUP_FILE"
 PARTIAL_FILE=""
+
+# Publish first so a failed run always leaves the previous recovery point.
+if [[ "$PRESERVE_BACKUPS" == "false" ]]; then
+    find "$BACKUP_DIR" -maxdepth 1 -type f -name 'openclaw_backup_*.tar.gz' ! -samefile "$BACKUP_FILE" -delete
+fi
 
 # Get backup size
 BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)

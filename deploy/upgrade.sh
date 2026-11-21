@@ -60,7 +60,7 @@ echo "Stopping services. Recovery files: $recovery"
 docker compose --profile sync stop
 trap 'docker compose --profile sync stop || true; echo "Upgrade failed. Services were stopped; recovery files are in $recovery. Do not start the old image on migrated state." >&2' ERR
 # The backup script sees an already stopped gateway and leaves it stopped.
-bash "$stage/backup.sh" true "$HOME/backups" consistent | tee "$recovery/backup.log"
+bash "$stage/backup.sh" false "$HOME/backups" consistent | tee "$recovery/backup.log"
 
 install -m 600 "$stage/openclaw.json" "$HOME/.openclaw/openclaw.json"
 printf '# Managed by deploy/upgrade.sh\nservices:\n  openclaw-gateway:\n    image: %s\n' "$image" > docker-compose.override.yml

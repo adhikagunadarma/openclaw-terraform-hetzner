@@ -103,7 +103,7 @@ clean: ## Clean up Terraform files (keeps state)
 # =============================================================================
 
 UPGRADE_VERSION ?= 2026.11.6
-.PHONY: build upgrade
+.PHONY: build upgrade job-models
 
 build: ## Build and push version-tagged images from CONFIG_DIR
 	@test -n "$(CONFIG_DIR)" || { echo "Source config/inputs.sh first (CONFIG_DIR required)."; exit 1; }
@@ -111,6 +111,11 @@ build: ## Build and push version-tagged images from CONFIG_DIR
 
 upgrade: ## Back up stopped state, repair, and activate the version-tagged gateway
 	@bash ./deploy/upgrade.sh "$(SERVER_IP)" "$(CONFIG_DIR)" "$(GHCR_USERNAME)" "$(UPGRADE_VERSION)"
+
+# MODEL and FALLBACK take provider/model IDs. PROFILE defaults to each job's binding.
+# Optional JOB_ID limits the operation to one job. APPLY=1 writes the preview.
+job-models: ## Preview or apply scheduled job models (MODEL=... FALLBACK=... [APPLY=1])
+	@python3 ./scripts/job-models.py "$(SERVER_IP)"
 
 bootstrap: ## Bootstrap OpenClaw on the VPS (run once after apply)
 	@echo -e "$(BLUE)[DEPLOY]$(NC) Bootstrapping OpenClaw on VPS..."
@@ -231,6 +236,7 @@ help: ## Show this help message
 	@echo -e "  $(BLUE)deploy$(NC)          Pull latest image and restart container"
 	@echo -e "  $(BLUE)push-env$(NC)        Push secrets/openclaw.env to the VPS"
 	@echo -e "  $(BLUE)push-config$(NC)     Push config files to the VPS"
+	@echo -e "  $(BLUE)job-models$(NC)       Preview job routing (MODEL=... FALLBACK=...; APPLY=1 to write)"
 	@echo -e "  $(BLUE)push-backup-script$(NC) Install the repository backup script"
 	@echo -e "  $(BLUE)setup-auth$(NC)      Set up Claude subscription auth"
 	@echo -e "  $(BLUE)setup-whatsapp-auth$(NC) Link or repair WhatsApp auth"
