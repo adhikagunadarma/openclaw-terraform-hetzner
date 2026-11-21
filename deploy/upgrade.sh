@@ -64,6 +64,13 @@ bash "$stage/backup.sh" true "$HOME/backups" consistent | tee "$recovery/backup.
 
 install -m 600 "$stage/openclaw.json" "$HOME/.openclaw/openclaw.json"
 printf '# Managed by deploy/upgrade.sh\nservices:\n  openclaw-gateway:\n    image: %s\n' "$image" > docker-compose.override.yml
+# Plugin installation requires valid config. Migrate legacy keys before
+# entering the normal plugin reconciliation and post-upgrade repair sequence.
+if ! docker compose run -T --rm --no-deps --entrypoint openclaw openclaw-gateway config validate --json </dev/null; then
+    docker compose run -T --rm --no-deps --entrypoint env openclaw-gateway \
+        -u OPENCLAW_CONFIG_READONLY openclaw doctor --fix </dev/null 2>&1 | tee "$recovery/config-repair.log"
+    docker compose run -T --rm --no-deps --entrypoint openclaw openclaw-gateway config validate --json </dev/null
+fi
 # The SSH session uses stdin for this script. Keep Compose from consuming it.
 docker compose run -T --rm --no-deps -e OPENCLAW_UPGRADE_REPAIR=1 openclaw-gateway true </dev/null 2>&1 | tee "$recovery/repair.log"
 docker compose up -d openclaw-gateway
